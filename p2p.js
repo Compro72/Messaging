@@ -1,5 +1,6 @@
 class P2PDataChannels {
 	constructor(connector) {
+		this.id;
 		this.devices = {};
 		this.dataChannels = {};
 		this.isInitiator = {};
@@ -12,59 +13,76 @@ class P2PDataChannels {
 		};
 
 		this.onDataReceived = (data, remoteId) => { };
+		this.onPeerConnected = (remoteId) => { };
+		this.onPeerDisconnected = (remoteId) => { };
 	}
 
 	async process(data) {
 		let received = JSON.parse(data);
 
-		let remoteId = received.targetPeerId;
+		if (received.type == "id") {
+			this.id = received.message;
+			console.log(this.id);
+			console.log(JSON.parse(JSON.stringify(this)));
 
-		if (received.type == "role") {
-			await this.initialize(received.message, remoteId);
+			this.connector.send(JSON.stringify({
+				type: "connectAll"
+			}));
+		} else if (received.type == "role") {
+			await this.initialize(received.message, received.remoteId);
 		} else if (received.type == "sdp") {
-			await this.devices[remoteId].setRemoteDescription(new RTCSessionDescription(received.message));
+			if (!this.devices[received.remoteId]) return;
 
-			while (this.iceCandidateQueue[remoteId] && this.iceCandidateQueue[remoteId].length > 0) {
-				const cand = this.iceCandidateQueue[remoteId].shift();
-				await this.devices[remoteId].addIceCandidate(cand).catch(e => console.error(e));
+			await this.devices[received.remoteId].setRemoteDescription(new RTCSessionDescription(received.message));
+
+			while (this.iceCandidateQueue[received.remoteId] && this.iceCandidateQueue[received.remoteId].length > 0) {
+				const candidate = this.iceCandidateQueue[received.remoteId].shift();
+				await this.devices[received.remoteId].addIceCandidate(candidate);
 			}
 
-			if (!this.isInitiator[remoteId]) {
-				await this.createAnswer(remoteId);
+			if (!this.isInitiator[received.remoteId]) {
+				await this.createAnswer(received.remoteId);
 			}
 
 		} else if (received.type == "iceCandidate") {
 			const candidate = new RTCIceCandidate(received.message);
 
-			if (!this.devices[remoteId] || !this.devices[remoteId].remoteDescription) {
-				if (!this.iceCandidateQueue[remoteId]) this.iceCandidateQueue[remoteId] = [];
-				this.iceCandidateQueue[remoteId].push(candidate);
+			if (!this.devices[received.remoteId] || !this.devices[received.remoteId].remoteDescription) {
+				if (!this.iceCandidateQueue[received.remoteId]) this.iceCandidateQueue[received.remoteId] = [];
+				this.iceCandidateQueue[received.remoteId].push(candidate);
 			} else {
-				try {
-					await this.devices[remoteId].addIceCandidate(candidate);
-				} catch (e) {
-					console.error("Error adding received ICE candidate", e);
-				}
+				await this.devices[received.remoteId].addIceCandidate(candidate);
 			}
-
 		} else if (received.type == "peerLeft") {
-			this.closePeerConnection(remoteId);
+
 		}
 	}
 
 	async initialize(role, remoteId) {
+		console.log(remoteId);
+
+		this.iceCandidateQueue[remoteId] = [];
+
 		this.devices[remoteId] = new RTCPeerConnection({
 			iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
 		});
 
-		this.iceCandidateQueue[remoteId] = [];
+		this.devices[remoteId].onconnectionstatechange = () => {
+			const pc = this.devices[remoteId];
+			if (!pc) return;
+
+			const state = pc.connectionState;
+			if (state === "disconnected" || state === "failed" || state === "closed") {
+				this.closePeerConnection(remoteId);
+			}
+		};
 
 		this.devices[remoteId].onicecandidate = ({ candidate }) => {
 			if (candidate) {
 				this.connector.send(JSON.stringify({
 					type: "iceCandidate",
 					message: candidate,
-					targetPeerId: remoteId
+					remoteId: remoteId
 				}));
 			}
 		};
@@ -75,17 +93,28 @@ class P2PDataChannels {
 		} else {
 			this.isInitiator[remoteId] = false;
 
-			// Listen for the incoming data channel on the answerer side
 			this.devices[remoteId].ondatachannel = (event) => {
-				this.dataChannels[remoteId] = event.channel;
-				this.dataChannels[remoteId].onmessage = (event) => this.onDataReceived(event.data, remoteId);
+				this.setupDataChannel(remoteId, event.channel);
 			};
 		}
 	}
 
+	setupDataChannel(remoteId, channel) {
+		this.dataChannels[remoteId] = channel;
+		channel.onmessage = (event) => this.onDataReceived(event.data, remoteId);
+
+		channel.onopen = () => {
+			this.onPeerConnected(remoteId);
+		};
+
+		channel.onclose = () => {
+			this.closePeerConnection(remoteId);
+		};
+	}
+
 	async createOffer(remoteId) {
-		this.dataChannels[remoteId] = this.devices[remoteId].createDataChannel("dataChannel");
-		this.dataChannels[remoteId].onmessage = (event) => this.onDataReceived(event.data, remoteId);
+		const channel = this.devices[remoteId].createDataChannel("dataChannel");
+		this.setupDataChannel(remoteId, channel);
 
 		const offer = await this.devices[remoteId].createOffer();
 		await this.devices[remoteId].setLocalDescription(offer);
@@ -93,7 +122,7 @@ class P2PDataChannels {
 		this.connector.send(JSON.stringify({
 			type: "sdp",
 			message: this.devices[remoteId].localDescription,
-			targetPeerId: remoteId
+			remoteId: remoteId
 		}));
 	}
 
@@ -104,7 +133,7 @@ class P2PDataChannels {
 		this.connector.send(JSON.stringify({
 			type: "sdp",
 			message: this.devices[remoteId].localDescription,
-			targetPeerId: remoteId
+			remoteId: remoteId
 		}));
 	}
 
@@ -115,20 +144,27 @@ class P2PDataChannels {
 	}
 
 	sendDataToPeer(remoteId, data) {
-		const dc = this.dataChannels[remoteId];
 		if (this.dataChannels[remoteId] && this.dataChannels[remoteId].readyState == "open") {
-			dc.send(JSON.stringify(data));
+			this.dataChannels[remoteId].send(data);
 		} else {
-			console.warn(`Data channel for peer ${remoteId} is not open.`);
+			this.closePeerConnection(remoteId);
 		}
 	}
 
 	closePeerConnection(remoteId) {
+		if (!this.devices[remoteId] && !this.dataChannels[remoteId]) return;
+
 		if (this.dataChannels[remoteId]) {
+			this.dataChannels[remoteId].onopen = null;
+			this.dataChannels[remoteId].onclose = null;
+			this.dataChannels[remoteId].onmessage = null;
 			this.dataChannels[remoteId].close();
 		}
 
 		if (this.devices[remoteId]) {
+			this.devices[remoteId].onicecandidate = null;
+			this.devices[remoteId].onconnectionstatechange = null;
+			this.devices[remoteId].ondatachannel = null;
 			this.devices[remoteId].close();
 		}
 
@@ -136,5 +172,7 @@ class P2PDataChannels {
 		delete this.dataChannels[remoteId];
 		delete this.isInitiator[remoteId];
 		delete this.iceCandidateQueue[remoteId];
+
+		this.onPeerDisconnected(remoteId);
 	}
 }
