@@ -10,5 +10,9 @@ channels.onDataReceived = (data, remoteId) => {
 }
 
 function sendMessage() {
-    channels.broadcastData(JSON.stringify("ping"));
+    const input = document.getElementById('messageInput');
+    if (input.value) {
+        channels.broadcastData(JSON.stringify(input.value));
+        input.value = '';
+    }
 }
