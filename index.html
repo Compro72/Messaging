@@ -1,20 +1,50 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <!-- <link rel="stylesheet" href="style.css"> -->
-    <h2>P2P Messaging</h2>
-    <input type="text" id="messageInput" placeholder="Type a message...">
-    <button onclick="sendMessage()">Send Message</button>
-
-    <h3>Messages:</h3>
-    <ul id="messagesList"></ul>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC P2P Lobby</title>
+    <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
+    <div class="lobby-container">
+        <!-- Room Creation -->
+        <div class="section">
+            <button class="btn btn-primary" onclick="createRoom()">Create Room</button>
+        </div>
+        
+        <hr>
+
+        <!-- Available Rooms -->
+        <div class="section">
+            <h3>Rooms</h3>
+            <ul id="roomsList"></ul>
+        </div>
+
+        <hr>
+
+        <!-- Active Room Status -->
+        <div class="section row-align">
+            <h3 id="joinedRoom">Currently Joined Room: <span class="null-text">null</span></h3>
+            <button class="btn btn-danger" onclick="leaveRoom()">Leave Room</button>
+        </div>
+
+        <hr>
+
+        <!-- Message Panel -->
+        <div class="section chat-panel">
+            <div class="chat-input-group">
+                <input type="text" id="messageInput" placeholder="Type a message...">
+                <button class="btn btn-success" onclick="sendMessage()">Send</button>
+            </div>
+
+            <h3>Room Messages</h3>
+            <ul id="messagesList" class="message-feed"></ul>
+        </div>
+    </div>
+
     <script src="connector.js"></script>
     <script src="p2p.js"></script>
     <script src="main.js"></script>
 </body>
-
 </html>

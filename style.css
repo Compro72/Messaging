@@ -1,0 +1,244 @@
+:root {
+    --bg-main: #000000;
+    --bg-card: #272727;
+    --text-primary: #ffffff;
+    --text-muted: #ffffff;
+    --border-color: #ffffff;
+    /* Subtle borders */
+
+    --color-primary: #6366f1;
+    --color-success: #00ff00;
+    --color-danger: #ff0000;
+
+    --transition-speed: 0.2s;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.lobby-container {
+    background-color: var(--bg-card);
+    border-radius: 4px;
+    width: 100%;
+    max-width: 500px;
+    padding: 24px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3),
+        0 8px 10px -6px rgba(0, 0, 0, 0.3);
+}
+
+.section {
+    margin: 16px 0;
+}
+
+hr {
+    border: none;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border-color) 50%, transparent);
+    margin: 20px 0;
+}
+
+h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+#joinedRoom {
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    text-transform: none;
+    font-weight: 500;
+}
+
+.null-text {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.btn {
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color var(--transition-speed) ease,
+        transform 0.1s ease,
+        box-shadow var(--transition-speed) ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+}
+
+.btn:active {
+    transform: scale(0.97);
+}
+
+.btn-primary {
+    background-color: var(--color-primary);
+    width: 100%;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+}
+
+.btn-primary:hover {
+    background-color: #4f46e5;
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
+}
+
+.btn-success {
+    background-color: var(--color-success);
+}
+
+.btn-success:hover {
+    background-color: #059669;
+}
+
+.btn-danger {
+    background-color: var(--color-danger);
+    padding: 8px 12px;
+    font-size: 0.8rem;
+}
+
+.btn-danger:hover {
+    background-color: #dc2626;
+}
+
+input[type="text"] {
+    flex-grow: 1;
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    padding: 10px 14px;
+    border-radius: 4px;
+    border: 1px solid var(--bg-main);
+    font-family: inherit;
+    font-size: 0.95rem;
+    transition: border-color var(--transition-speed) ease,
+        box-shadow var(--transition-speed) ease;
+}
+
+input[type="text"]:focus {
+    border: 1px solid;
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.row-align {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.chat-input-group {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+ul {
+    list-style: none;
+    max-height: 180px;
+    overflow-y: auto;
+    background-color: rgba(15, 23, 42, 0.5);
+    border-radius: 4px;
+}
+
+ul li {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.9rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+ul li:last-child {
+    border-bottom: none;
+}
+
+ul::-webkit-scrollbar {
+    width: 6px;
+}
+
+ul::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+ul::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 1.5px;
+}
+
+ul::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
+.message-feed {
+    max-height: 200px;
+}
+
+.message-feed li {
+    word-break: break-all;
+    display: block;
+    line-height: 1.4;
+}
+
+.btn-join {
+    background-color: var(--color-primary);
+    color: #ffffff;
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background-color var(--transition-speed) ease,
+        transform 0.1s ease;
+}
+
+.btn-join:hover {
+    background-color: #4f46e5;
+}
+
+.btn-join:active {
+    transform: scale(0.95);
+}
+
+ul#roomsList li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+}
+
+ul#roomsList li span {
+    font-family: monospace;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    background-color: var(--bg-main);
+    padding: 2px 6px;
+    border-radius: 2px;
+}

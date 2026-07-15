@@ -8,8 +8,28 @@ class P2PDataChannels {
 
 		this.connector = connector;
 
-		this.connector.onDataReceived = (data) => {
+		this.connector.onopen = () => {
+			this.id = sessionStorage.getItem("p2p_session_id");
+			if (!this.id) {
+				this.id = "peer_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+				sessionStorage.setItem("p2p_session_id", this.id);
+			}
+
+			this.connector.send(JSON.stringify({
+				type: "initId",
+				id: this.id
+			}));
+		}
+
+		this.connector.onPeerDataReceived = (data) => {
 			this.process(data);
+		};
+
+		this.connector.onRoomLeft = () => {
+			this.devices = {};
+			this.dataChannels = {};
+			this.isInitiator = {};
+			this.iceCandidateQueue = {};
 		};
 
 		this.onDataReceived = (data, remoteId) => { };
@@ -20,47 +40,38 @@ class P2PDataChannels {
 	async process(data) {
 		let received = JSON.parse(data);
 
-		if (received.type == "id") {
-			this.id = received.message;
-			console.log(this.id);
-			console.log(JSON.parse(JSON.stringify(this)));
+		let peerMessageType = received.peerMessageType;
+		let remoteId = received.remoteId;
 
-			this.connector.send(JSON.stringify({
-				type: "connectAll"
-			}));
-		} else if (received.type == "role") {
-			await this.initialize(received.message, received.remoteId);
-		} else if (received.type == "sdp") {
-			if (!this.devices[received.remoteId]) return;
+		if (peerMessageType === "role") {
+			await this.initialize(received.role, remoteId);
+		} else if (peerMessageType === "sdp") {
+			if (!this.devices[remoteId]) return;
 
-			await this.devices[received.remoteId].setRemoteDescription(new RTCSessionDescription(received.message));
+			await this.devices[remoteId].setRemoteDescription(new RTCSessionDescription(received.sdp));
 
-			while (this.iceCandidateQueue[received.remoteId] && this.iceCandidateQueue[received.remoteId].length > 0) {
-				const candidate = this.iceCandidateQueue[received.remoteId].shift();
-				await this.devices[received.remoteId].addIceCandidate(candidate);
+			while (this.iceCandidateQueue[remoteId] && this.iceCandidateQueue[remoteId].length > 0) {
+				const candidate = this.iceCandidateQueue[remoteId].shift();
+				await this.devices[remoteId].addIceCandidate(candidate);
 			}
 
-			if (!this.isInitiator[received.remoteId]) {
-				await this.createAnswer(received.remoteId);
+			if (!this.isInitiator[remoteId]) {
+				await this.createAnswer(remoteId);
 			}
 
-		} else if (received.type == "iceCandidate") {
-			const candidate = new RTCIceCandidate(received.message);
+		} else if (peerMessageType === "iceCandidate") {
+			const candidate = new RTCIceCandidate(received.candidate);
 
-			if (!this.devices[received.remoteId] || !this.devices[received.remoteId].remoteDescription) {
-				if (!this.iceCandidateQueue[received.remoteId]) this.iceCandidateQueue[received.remoteId] = [];
-				this.iceCandidateQueue[received.remoteId].push(candidate);
+			if (!this.devices[remoteId] || !this.devices[remoteId].remoteDescription) {
+				if (!this.iceCandidateQueue[remoteId]) this.iceCandidateQueue[remoteId] = [];
+				this.iceCandidateQueue[remoteId].push(candidate);
 			} else {
-				await this.devices[received.remoteId].addIceCandidate(candidate);
+				await this.devices[remoteId].addIceCandidate(candidate);
 			}
-		} else if (received.type == "peerLeft") {
-
 		}
 	}
 
 	async initialize(role, remoteId) {
-		console.log(remoteId);
-
 		this.iceCandidateQueue[remoteId] = [];
 
 		this.devices[remoteId] = new RTCPeerConnection({
@@ -80,14 +91,16 @@ class P2PDataChannels {
 		this.devices[remoteId].onicecandidate = ({ candidate }) => {
 			if (candidate) {
 				this.connector.send(JSON.stringify({
-					type: "iceCandidate",
-					message: candidate,
-					remoteId: remoteId
+					type: "peerMessage",
+					peerMessageType: "iceCandidate",
+					candidate: candidate,
+					targetId: remoteId,
+					remoteId: this.id
 				}));
 			}
 		};
 
-		if (role == "initiator") {
+		if (role === "initiator") {
 			this.isInitiator[remoteId] = true;
 			await this.createOffer(remoteId);
 		} else {
@@ -120,9 +133,11 @@ class P2PDataChannels {
 		await this.devices[remoteId].setLocalDescription(offer);
 
 		this.connector.send(JSON.stringify({
-			type: "sdp",
-			message: this.devices[remoteId].localDescription,
-			remoteId: remoteId
+			type: "peerMessage",
+			peerMessageType: "sdp",
+			sdp: this.devices[remoteId].localDescription,
+			targetId: remoteId,
+			remoteId: this.id
 		}));
 	}
 
@@ -131,9 +146,11 @@ class P2PDataChannels {
 		await this.devices[remoteId].setLocalDescription(answer);
 
 		this.connector.send(JSON.stringify({
-			type: "sdp",
-			message: this.devices[remoteId].localDescription,
-			remoteId: remoteId
+			type: "peerMessage",
+			peerMessageType: "sdp",
+			sdp: this.devices[remoteId].localDescription,
+			targetId: remoteId,
+			remoteId: this.id
 		}));
 	}
 
@@ -144,7 +161,7 @@ class P2PDataChannels {
 	}
 
 	sendDataToPeer(remoteId, data) {
-		if (this.dataChannels[remoteId] && this.dataChannels[remoteId].readyState == "open") {
+		if (this.dataChannels[remoteId] && this.dataChannels[remoteId].readyState === "open") {
 			this.dataChannels[remoteId].send(data);
 		} else {
 			this.closePeerConnection(remoteId);
