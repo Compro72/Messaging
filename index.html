@@ -5,44 +5,55 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WebRTC P2P Lobby</title>
+    
+    <!-- === 1. ADDED PWA METADATA & MANIFEST LINK === -->
+    <meta name="theme-color" content="#1a1a1a">
+    <link rel="manifest" href="./manifest.json">
+    
     <link rel="stylesheet" href="style.css">
 </head>
 
-<body>
+<body class="lobby-view">
     <div class="lobby-container">
-        <!-- Room Creation -->
-        <div class="section">
-            <button class="btn btn-primary" onclick="createRoom()">Create Room</button>
+        <div class="section row-align info-header">
+            <div>My ID: <span id="myId" class="id-badge">loading...</span></div>
+            <div class="state-room">Host: <span id="hostId" class="id-badge text-primary">loading...</span></div>
         </div>
 
-        <hr>
+        <hr class="info-divider">
 
-        <!-- Available Rooms -->
-        <div class="section">
-            <h3>Rooms</h3>
-            <ul id="roomsList"></ul>
-        </div>
-
-        <hr>
-
-        <!-- Active Room Status -->
-        <div class="section row-align">
-            <h3 id="joinedRoom">Currently Joined Room: <span class="null-text">null</span></h3>
-            <button class="btn btn-danger" onclick="leaveRoom()">Leave Room</button>
-        </div>
-
-        <hr>
-
-        <!-- Message Panel -->
-        <div class="section chat-panel">
-            <div class="chat-input-group">
-                <input type="text" id="messageInput" placeholder="Type a message...">
-                <button class="btn btn-success" onclick="sendMessage()">Send</button>
+        <div class="state-lobby">
+            <div class="section">
+                <button class="btn btn-primary" onclick="createRoom()">Create Room</button>
             </div>
 
-            <h3>Room Messages</h3>
-            <ul id="messagesList" class="message-feed"></ul>
+            <hr>
+
+            <div class="section">
+                <h3>Rooms</h3>
+                <ul id="roomsList"></ul>
+            </div>
         </div>
+
+        <div class="state-room">
+            <div class="section row-align">
+                <h3 id="joinedRoom"><span class="null-text">null</span></h3>
+                <button class="btn btn-danger" onclick="leaveRoom()">Leave Room</button>
+            </div>
+
+            <hr>
+
+            <div class="section chat-panel">
+                <div class="chat-input-group">
+                    <input type="text" id="messageInput" placeholder="Type a message...">
+                    <button class="btn btn-success" onclick="sendMessage()">Send</button>
+                </div>
+
+                <h3>Room Messages</h3>
+                <ul id="messagesList" class="message-feed"></ul>
+            </div>
+        </div>
+
     </div>
 
     <script>
@@ -54,6 +65,16 @@
             script.async = false;
             document.body.appendChild(script);
         });
+
+        // === 2. ADDED SERVICE WORKER REGISTRATION ===
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                // We append a timestamp to the service worker path to bypass aggressive browser caching during dev
+                navigator.serviceWorker.register(`./sw.js?t=${Date.now()}`, { scope: './' })
+                    .then(reg => console.log('PWA Service Worker registered!', reg.scope))
+                    .catch(err => console.log('PWA Service Worker registration failed:', err));
+            });
+        }
     </script>
 </body>
 
