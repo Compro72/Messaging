@@ -4,7 +4,6 @@
     --text-primary: #ffffff;
     --text-muted: #ffffff;
     --border-color: #ffffff;
-    /* Subtle borders */
 
     --color-primary: #6366f1;
     --color-success: #00ff00;
@@ -35,19 +34,20 @@ body {
     border-radius: 4px;
     width: 100%;
     max-width: 500px;
-    padding: 24px;
+    padding-left: 24px;
+    padding-right: 24px;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3),
         0 8px 10px -6px rgba(0, 0, 0, 0.3);
 }
 
 .section {
-    margin: 16px 0;
+    margin: 24px 0;
 }
 
 hr {
     border: none;
     height: 1px;
-    background: linear-gradient(90deg, transparent, var(--border-color) 50%, transparent);
+    background: white;
     margin: 20px 0;
 }
 
@@ -241,4 +241,39 @@ ul#roomsList li span {
     background-color: var(--bg-main);
     padding: 2px 6px;
     border-radius: 2px;
+}
+
+
+body.lobby-view .state-room {
+    display: none;
+}
+body.lobby-view .state-lobby {
+    display: block;
+}
+
+body.room-view .state-lobby {
+    display: none;
+}
+body.room-view .state-room {
+    display: block;
+}
+
+
+.info-header {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+}
+
+.id-badge {
+    font-family: monospace;
+    background-color: var(--bg-main);
+    padding: 3px 6px;
+    border-radius: 3px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+.info-divider {
+    margin: 12px 0 20px 0;
 }

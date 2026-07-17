@@ -10,7 +10,8 @@ class Connector {
         };
 
         this.onPeerDataReceived = (data) => { };
-        this.onRoomChange = () => { };
+        this.onRoomsListChange = () => { };
+        this.onRoomJoinStatusChange = () => { };
         this.onRoomLeft = () => { };
         this.socket.onmessage = (event) => {
             let received = JSON.parse(event.data);
@@ -19,15 +20,15 @@ class Connector {
 
             if (received.type === "roomCreated") {
                 this.roomIds.push(received.roomId);
-                this.onRoomChange();
+                this.onRoomsListChange();
             } else if (received.type === "roomClosed") {
                 this.roomIds = this.roomIds.filter((value) => {
                     return value != received.roomId;
                 });
-                this.onRoomChange();
+                this.onRoomsListChange();
             } else if (received.type === "roomJoined") {
                 this.connectedRoom = received.roomId;
-                this.onRoomChange();
+                this.onRoomJoinStatusChange();
             } else if (received.type === "peerMessage") {
                 this.onPeerDataReceived(event.data);
             }
@@ -35,25 +36,29 @@ class Connector {
     }
 
     createRoom() {
-        this.socket.send(JSON.stringify({
-            type: "createRoom"
-        }));
+        if (!this.connectedRoom) {
+            this.send(JSON.stringify({
+                type: "createRoom"
+            }));
+        }
     }
 
     joinRoom(roomId) {
-        this.socket.send(JSON.stringify({
-            type: "connectRoom",
-            roomId: roomId
-        }));
+        if (!this.connectedRoom) {
+            this.send(JSON.stringify({
+                type: "connectRoom",
+                roomId: roomId
+            }));
+        }
     }
 
     leaveRoom() {
         if (this.connectedRoom) {
-            this.socket.send(JSON.stringify({
+            this.send(JSON.stringify({
                 type: "disconnectRoom"
             }));
             this.connectedRoom = null;
-            this.onRoomChange();
+            this.onRoomJoinStatusChange();
             this.onRoomLeft();
         }
     }

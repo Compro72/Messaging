@@ -1,10 +1,14 @@
 class P2PDataChannels {
 	constructor(connector) {
-		this.id;
+		this.id = null;
+		this.hostId = null;
 		this.devices = {};
 		this.dataChannels = {};
 		this.isInitiator = {};
 		this.iceCandidateQueue = {};
+
+		this.timestamps = {};
+		this.oldestTimestamp = Infinity;
 
 		this.connector = connector;
 
@@ -26,15 +30,30 @@ class P2PDataChannels {
 		};
 
 		this.connector.onRoomLeft = () => {
-			this.devices = {};
-			this.dataChannels = {};
-			this.isInitiator = {};
-			this.iceCandidateQueue = {};
+			this.leaveRoom();
 		};
+
+		window.addEventListener('pagehide', () => {
+			this.connector.leaveRoom();
+		});
+
 
 		this.onDataReceived = (data, remoteId) => { };
 		this.onPeerConnected = (remoteId) => { };
 		this.onPeerDisconnected = (remoteId) => { };
+	}
+
+	isHost() {
+		return this.id && this.hostId && this.id == this.hostId;
+	}
+
+	leaveRoom() {
+		Object.keys(this.dataChannels).forEach((remoteId) => {
+			this.closePeerConnection(remoteId);
+		});
+		this.timestamps = {};
+		this.hostId = null;
+		this.oldestTimestamp = Infinity;
 	}
 
 	async process(data) {
@@ -43,8 +62,16 @@ class P2PDataChannels {
 		let peerMessageType = received.peerMessageType;
 		let remoteId = received.remoteId;
 
-		if (peerMessageType === "role") {
+		if (peerMessageType === "timestamp") {
+			this.timestamps[remoteId] = received.timestamp;
+			if (received.timestamp < this.oldestTimestamp) {
+				this.oldestTimestamp = received.timestamp;
+				this.hostId = remoteId;
+			}
+
+		} else if (peerMessageType === "role") {
 			await this.initialize(received.role, remoteId);
+
 		} else if (peerMessageType === "sdp") {
 			if (!this.devices[remoteId]) return;
 
@@ -52,7 +79,9 @@ class P2PDataChannels {
 
 			while (this.iceCandidateQueue[remoteId] && this.iceCandidateQueue[remoteId].length > 0) {
 				const candidate = this.iceCandidateQueue[remoteId].shift();
-				await this.devices[remoteId].addIceCandidate(candidate);
+				try {
+					await this.devices[remoteId].addIceCandidate(candidate);
+				} catch (e) {}
 			}
 
 			if (!this.isInitiator[remoteId]) {
@@ -78,14 +107,9 @@ class P2PDataChannels {
 			iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
 		});
 
-		this.devices[remoteId].onconnectionstatechange = () => {
-			const pc = this.devices[remoteId];
-			if (!pc) return;
-
-			const state = pc.connectionState;
-			if (state === "disconnected" || state === "failed" || state === "closed") {
-				this.closePeerConnection(remoteId);
-			}
+		this.devices[remoteId].onconnectionstatechange = (event) => {
+			console.log(this.devices[remoteId].connectionState)
+			console.log(this.devices[remoteId].iceConnectionState)
 		};
 
 		this.devices[remoteId].onicecandidate = ({ candidate }) => {
@@ -114,7 +138,9 @@ class P2PDataChannels {
 
 	setupDataChannel(remoteId, channel) {
 		this.dataChannels[remoteId] = channel;
-		channel.onmessage = (event) => this.onDataReceived(event.data, remoteId);
+		channel.onmessage = (event) => {
+			this.onDataReceived(event.data, remoteId);
+		};
 
 		channel.onopen = () => {
 			this.onPeerConnected(remoteId);
@@ -161,7 +187,7 @@ class P2PDataChannels {
 	}
 
 	sendDataToPeer(remoteId, data) {
-		if (this.dataChannels[remoteId] && this.dataChannels[remoteId].readyState === "open") {
+		if (this.dataChannels[remoteId] && this.dataChannels[remoteId].readyState === "open" && this.dataChannels[remoteId].bufferedAmount < 1048576) {
 			this.dataChannels[remoteId].send(data);
 		} else {
 			this.closePeerConnection(remoteId);
@@ -169,8 +195,6 @@ class P2PDataChannels {
 	}
 
 	closePeerConnection(remoteId) {
-		if (!this.devices[remoteId] && !this.dataChannels[remoteId]) return;
-
 		if (this.dataChannels[remoteId]) {
 			this.dataChannels[remoteId].onopen = null;
 			this.dataChannels[remoteId].onclose = null;
@@ -189,6 +213,15 @@ class P2PDataChannels {
 		delete this.dataChannels[remoteId];
 		delete this.isInitiator[remoteId];
 		delete this.iceCandidateQueue[remoteId];
+		delete this.timestamps[remoteId];
+
+		this.oldestTimestamp = Infinity;
+		Object.keys(this.timestamps).forEach((timestampRemoteId) => {
+			if (this.timestamps[timestampRemoteId] < this.oldestTimestamp) {
+				this.oldestTimestamp = this.timestamps[timestampRemoteId];
+				this.hostId = timestampRemoteId;
+			}
+		});
 
 		this.onPeerDisconnected(remoteId);
 	}
