@@ -1,23 +1,21 @@
 {
-  "short_name": "P2PLobby",
-  "name": "P2P WebRTC Game Lobby",
-  "icons": [
-    {
-      "src": "./icon-192.png",
-      "type": "image/png",
-      "sizes": "192x192",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "./icon-512.png",
-      "type": "image/png",
-      "sizes": "512x512",
-      "purpose": "any maskable"
-    }
-  ],
+  "name": "P2P Multiplayer Lobby",
+  "short_name": "P2P Lobby",
   "start_url": "./index.html",
+  "display": "standalone",
   "background_color": "#1a1a1a",
   "theme_color": "#1a1a1a",
-  "display": "standalone",
-  "orientation": "portrait"
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
 }
